@@ -1,0 +1,45 @@
+- name: Install Nginx
+  hosts: all
+  remote_user: ec2-user
+  become: yes
+
+  tasks:  
+    - name: Update all packages
+      yum:
+        name: '*'
+        state: latest
+        update_only: yes
+
+    - name: Ensure a list of yum packages are installed
+      yum:
+        name: "{{ packages }}"
+        state: latest
+        update_cache: yes
+      vars:
+        packages:
+        - yum-utils
+        - amazon-linux-extras
+
+    - name: Add extras repository
+      shell: yum-config-manager --enable extras
+
+    - name: Enable Some packages from amazon-linux-extras packages
+      shell: "amazon-linux-extras enable docker"
+
+    - name: Ensure a list of yum packages are installed
+      yum:
+        name: docker
+        state: latest
+        update_cache: yes
+
+    - name: Enable Docker CE service at startup
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Create index.html
+      shell: "mkdir html; cd html; curl http://169.254.169.254/latest/meta-data/public-ipv4 > index.html"
+
+    - name: Run nginx container
+      shell: "docker run --name test -v $(pwd)/html:/usr/share/nginx/html:ro -d -p 80:80 nginx"
